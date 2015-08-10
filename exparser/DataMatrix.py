@@ -224,7 +224,7 @@ class DataMatrix(BaseMatrix):
 		"""
 
 		if vName in self.columns():
-			raise Exception('field %s already exists' % vName)
+			raise Exception('field "%s" already exists' % vName)
 		a = np.zeros(self.m.shape, dtype=self.m.dtype.descr + [(vName, dtype)])
 		for name in self.m.dtype.names:
 			a[name] = self.m[name]
@@ -1045,4 +1045,4 @@ def fromMySQL(query, user, passwd, db, charset='utf8', use_unicode=True):
 			l.append(list(row.keys()))
 		l.append(list(row.values()))
 	db.close()
-	return DataMatrix(np.array(l, dtype='|S256'))
+	return DataMatrix(np.array(l, dtype='|S12'))

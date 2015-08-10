@@ -145,6 +145,10 @@ class EyelinkAscFolderReader(BaseReader):
 		True or False
 		"""
 
+		#print "l = ", 
+		#print l
+		#sys.exit()
+
 		# SBLINK R 4999128
 		return l[0] == 'SBLINK'
 
@@ -214,7 +218,7 @@ class EyelinkAscFolderReader(BaseReader):
 		Arguments:
 		trialDict -- a trial dictionary
 		"""
-
+		
 		pass
 
 	def __finishTrial__(self, trialDict):
@@ -278,7 +282,7 @@ class EyelinkAscFolderReader(BaseReader):
 				if not os.path.exists(os.path.join(self.traceFolder, 'png')):
 					print('Creating traceImgFolder: %s' % os.path.join( \
 						self.traceFolder, 'png'))
-				os.makedirs(self.traceFolder)
+				#os.makedirs(self.traceFolder)
 				plt.savefig(path)
 			if '--traceplot' in sys.argv:
 				plt.show()
@@ -521,9 +525,9 @@ class EyelinkAscFolderReader(BaseReader):
 		'size'.
 		"""
 
-		if len(l) < 11 or l[0] != "ESACC":
+		if l[0] != 'ESACC':
 			return None
-
+		assert(len(l) >= 11)
 		try:
 			saccade = {}
 			if len(l) == 15:
@@ -604,8 +608,9 @@ class EyelinkAscFolderReader(BaseReader):
 		following keys: 'x', 'y', 'sTime', 'eTime', 'duration'.
 		"""
 
-		if len(l) != 8 or l[0] != "EFIX":
+		if l[0] != 'EFIX':
 			return None
+		assert(len(l) == 8)
 		fixation = {}
 		fixation["x"] = l[5] - self.driftAdjust[0]
 		fixation["y"] = l[6] - self.driftAdjust[1]

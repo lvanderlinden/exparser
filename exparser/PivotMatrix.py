@@ -344,7 +344,8 @@ class PivotMatrix(BaseMatrix):
 
 	def linePlot(self, fig=None, show=False, _dir='up', spacing=.5, \
 		xLabels=None, lLabels=None, xLabelRot=0, yLim=None, legendPos='best', \
-		legendTitle=None, yLabel=None, xLabel=None):
+		legendTitle=None, yLabel=None, xLabel=None, colors = None, \
+			alphaLvl = 1):
 
 		"""
 		Draws a line chart. Only 1 and 2 factor designs are allowed.
@@ -376,7 +377,7 @@ class PivotMatrix(BaseMatrix):
 		aErr = np.array(self.m[-1,2:-2], dtype=float)
 
 		_xLabels = []
-		colors = []
+		#colors = []
 		x = 0
 
 		for dm in self.dm.group(v1):
@@ -420,8 +421,9 @@ class PivotMatrix(BaseMatrix):
 			xLabels = _xLabels
 		if lLabels == None:
 			lLabels = _lLabels
-
-		colors = Constants.plotLineColors[:]
+		
+		if colors == None:
+			colors = Constants.plotLineColors[:]
 		fmts = Constants.plotLineSymbols[:]
 		linestyles = Constants.plotLineStyles[:]
 
@@ -436,7 +438,7 @@ class PivotMatrix(BaseMatrix):
 					color=colors.pop(), fmt=fmts.pop(),
 					capsize=Constants.capSize,
 					linewidth=Constants.plotLineWidth,
-					linestyle=linestyles.pop())
+					linestyle=linestyles.pop(), alpha = alphaLvl)
 
 		# Plot a single line
 		else:
@@ -444,7 +446,7 @@ class PivotMatrix(BaseMatrix):
 			plt.errorbar(xData, aMean, yerr=aErr, color=colors.pop(),
 				fmt=fmts.pop(), capsize=Constants.capSize,
 				linewidth=Constants.plotLineWidth,
-				linestyle=linestyles.pop())
+				linestyle=linestyles.pop(), alpha = alphaLvl)
 
 		# Flip axis if necessary
 		if _dir == 'down':
