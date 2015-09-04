@@ -16,3 +16,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with exparser.  If not, see <http://www.gnu.org/licenses/>.
 """
+
+def inspect(dm):
+	
+	from PyQt4 import QtGui, QtCore
+	app = QtGui.QApplication([])
+	table = QtGui.QTableWidget(len(dm), len(dm.columns()))
+	for row in dm.range():
+		for col, name in enumerate(sorted(dm.columns())):
+			if row == 0:
+				item = QtGui.QTableWidgetItem(unicode(name))
+				table.setHorizontalHeaderItem(col, item)
+			val = dm[name][row]
+			item = QtGui.QTableWidgetItem(unicode(val))
+			table.setItem(row, col, item)
+	table.show()
+	app.exec_()
+	

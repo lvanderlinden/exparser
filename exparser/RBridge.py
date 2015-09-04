@@ -22,6 +22,7 @@ import time
 import subprocess
 import select
 import signal
+import numpy as np
 from exparser.CsvReader import CsvReader
 from exparser.DataMatrix import DataMatrix
 from exparser.Cache import cachedDataMatrix
@@ -38,6 +39,7 @@ class RBridge(object):
 			stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 		self.poll = select.poll()
 		self.poll.register(self.RProcess.stdout, select.POLLIN)
+		self.needDetach = False
 
 	def __del__(self):
 
@@ -191,33 +193,33 @@ class RBridge(object):
 		self.RProcess.wait()
 
 	@cachedDataMatrix
-	def lmer(self, formula, lmerVar='lmer1', pvalsVar='pv1'):
+	def lmer(self, formula, lmerVar='lmer1'):
 
 		"""
-		Performs a linear mixed-effects model, using the `lmer()` function from
-		`lme4`. Since support for MCMC sampling has been dropped from lme4, this
-		function no longer returns p-values. It is recommended to use the
-		standard error, and the t > 2 threshold for significance, as suggested
-		by Baayen et al. (2008 J Mem Lang).
+		descL
+			Performs a linear mixed-effects model, using the `lmer()` function
+			from `lme4`.
 
-		Arguments:
-		formula		--	An R-style mixed-effects formula.
+		arguments:
+			formula:
+				desc:	An R-style mixed-effects formula.
+				type:	str
 
-		Keyword arguments:
-		lmerVar		--	The R variable to store the `lmer()` output in.
-						(default='lmer1')
-		pvalsVar	--	The R variable to store the `pvals.fnc()` output in.
-						(default='pv1')
+		keywords:
+			lmerVar:
+				desc:	The R variable to store the `lmer()` output in.
+				type:	str
 
-		Returns:
-		A DataMatrix with the model output.
+		returns:
+			desc:	A DataMatrix with the model output.
+			type:	DataMatrix
 		"""
 
 		if os.path.exists('.rbridge-lmer.csv'):
 			os.remove('.rbridge-lmer.csv')
 
 		# Peform lmer
-		self.write('library(lme4)')
+		self.write('library(lmerTest)')
 		s = self.call('(%s <- lmer(%s))' % (lmerVar, formula))
 		self.write('write.csv(summary(%s)$coef, ".rbridge-lmer.csv")' % \
 			lmerVar)
@@ -235,7 +237,64 @@ class RBridge(object):
 		dm.rename('Estimate', 'est')
 		dm.rename('Std. Error', 'se')
 		dm.rename('t value', 't')
+		dm.rename('Pr(>|t|)', 'p')
 		return dm
+
+	def glmer(self, formula, family, lmerVar='glmer1'):
+
+		if os.path.exists('.rbridge-glmer.csv'):
+			os.remove('.rbridge-glmer.csv')
+
+		# Peform lmer
+		self.write('library(lmerTest)')
+		s = self.call('(%s <- glmer(%s, family=%s))' \
+			% (lmerVar, formula, family))
+		self.write('write.csv(summary(%s)$coef, ".rbridge-glmer.csv")' % \
+			lmerVar)
+		while not os.path.exists('.rbridge-glmer.csv'):
+			time.sleep(.1)
+		# Try this a few times, because sometimes the csv hasn't been written
+		# yet
+		for i in range(10):
+			try:
+				dm = CsvReader('.rbridge-glmer.csv').dataMatrix()
+				break
+			except:
+				time.sleep(1)
+		dm.rename('f0', 'effect')
+		dm.rename('Estimate', 'est')
+		dm.rename('Std. Error', 'se')
+		dm.rename('Z value', 'z')
+		dm.rename('Pr(>|z|)', 'p')
+		dm = dm.addField('estProb', dtype=float)
+		dm['estProb'] = 1./(1.+np.exp(-dm['est']))
+		return dm
+
+	@cachedDataMatrix
+	def glmerBinomial(self, formula, lmerVar='glmer1'):
+
+		"""
+		descL
+			Performs a linear mixed-effects model for binomial dependent
+			variables, using the `glmer()` function from `lme4` and the
+			binomial family.
+
+		arguments:
+			formula:
+				desc:	An R-style mixed-effects formula.
+				type:	str
+
+		keywords:
+			lmerVar:
+				desc:	The R variable to store the `lmer()` output in.
+				type:	str
+
+		returns:
+			desc:	A DataMatrix with the model output.
+			type:	DataMatrix
+		"""
+
+		return glmer(formula, 'binomial', lmerVar=lmerVar)
 
 	def load(self, dm, frame='data'):
 
@@ -250,6 +309,9 @@ class RBridge(object):
 		"""
 
 		dm.save('.rbridge.csv')
+		if self.needDetach:
+			self.write('detach(%s)' % frame)
+		self.needDetach = True
 		self.write('%s <- read.csv(".rbridge.csv")' % frame)
 		self.write('attach(%s)' % frame)
 

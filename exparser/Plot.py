@@ -28,7 +28,7 @@ if '--clear-plot' in sys.argv and os.path.exists(plotFolder):
 	print 'Removing plot folder (%s)' % plotFolder
 	import shutil
 	shutil.rmtree(plotFolder)
-plt.rc('font', family='Arial', size=10)
+plt.rc('font', family='liberation sans', size=10)
 
 # Some pre-defined sizes
 xs = 4, 4
@@ -121,7 +121,7 @@ def save(name, folder=None, show=False, dpi=200):
 	pathPng = os.path.join(_plotFolder, 'png', '%s.png' % name)
 	plt.savefig(pathSvg)
 	plt.savefig(pathPng, dpi=dpi)
-	if show:
+	if show or '--show' in sys.argv:
 		plt.show()
 	else:
 		plt.clf()

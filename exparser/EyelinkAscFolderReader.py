@@ -70,14 +70,14 @@ class EyelinkAscFolderReader(BaseReader):
 		only			--	A list of files that should be analyzed, or None
 							to analyze all files. Mostly useful for debugging
 							purposes. (default=None)
-		acceptNonMatchingColumns	--- Boolean indicating whether or not to 
-										raise an exception if current dm and 
+		acceptNonMatchingColumns	--- Boolean indicating whether or not to
+										raise an exception if current dm and
 										to-be-added dm
 										do not have identical column headers.
 										If set to True, the intersection of
 										column headers is used and the check
 										is not carried out. If set to False,
-										the the check is carried out. 
+										the the check is carried out.
 										(default=True)
 		"""
 
@@ -95,6 +95,8 @@ class EyelinkAscFolderReader(BaseReader):
 		self.skipList = skipList
 		self.blinkReconstruct = blinkReconstruct
 		self.acceptNonMatchingColumns = acceptNonMatchingColumns
+		self.traceImg = '--traceimg' in sys.argv
+		self.tracePlot = '--traceplot' in sys.argv
 
 		print '\nScanning \'%s\'' % path
 		self.dm = None
@@ -107,27 +109,27 @@ class EyelinkAscFolderReader(BaseReader):
 				sys.stdout.write('Reading %s ...' % fname)
 				sys.stdout.flush()
 				a = self.parseFile(os.path.join(path, fname))
-				dm = DataMatrix(a)				
+				dm = DataMatrix(a)
 
 				if self.dm == None:
 					self.dm = dm
 				else:
-					
+
 					# If column headers are not identical:
 					if self.dm.columns() != dm.columns():
-						
+
 						# Determine warning message:
 						warningMsg = "The column headers are not identical. Difference:\n%s"\
 						% "\n".join(list(set(self.dm.columns()).\
 							symmetric_difference(set(dm.columns()))))
-						
+
 						# Determine whether to only print the warning,
 						# or to raise an exception:
 						if not acceptNonMatchingColumns:
 							raise Exception(warningMsg)
 						if acceptNonMatchingColumns:
 							print warningMsg
-					
+
 					self.dm += dm
 
 				print '(%d rows)' % len(dm)
@@ -232,13 +234,15 @@ class EyelinkAscFolderReader(BaseReader):
 
 		nPhase = len(self.traceDict)
 		i = 1
-		if '--traceplot' in sys.argv or '--traceimg' in sys.argv:
+		if self.traceImg or self.tracePlot:
 			plt.clf()
 			plt.close()
 			plt.figure(figsize=(12,12))
 			plt.subplots_adjust(hspace=.5, wspace=.5)
 		for phase, trace in self.traceDict.iteritems():
 			a = np.array(trace, dtype=float)
+			if len(a) == 0:
+				continue
 			origA = a.copy()
 			if self.blinkReconstruct:
 				a[:,2] = TraceKit.blinkReconstruct(a[:,2])
@@ -255,7 +259,7 @@ class EyelinkAscFolderReader(BaseReader):
 
 			np.save(path, a)
 			trialDict['__trace_%s__' % phase] = path
-			if '--traceplot' in sys.argv or '--traceimg' in sys.argv:
+			if self.traceImg or self.tracePlot:
 				plt.subplot(nPhase, 3, i)
 				i += 1
 				plt.title('X(%s)' % phase)
@@ -274,17 +278,18 @@ class EyelinkAscFolderReader(BaseReader):
 				plt.plot(a[:,2])
 				if self.traceSmoothParams != None or self.blinkReconstruct:
 					plt.plot(origA[:,2])
-		if '--traceplot' in sys.argv or '--traceimg' in sys.argv:
+		if self.traceImg or self.tracePlot:
 			plt.suptitle(path)
-			if '--traceimg' in sys.argv:
+			if self.traceImg:
 				path = os.path.join(self.traceFolder, 'png', '%s-%.5d-%s.png' \
 					% (trialDict['file'], trialDict['trialId'], phase))
 				if not os.path.exists(os.path.join(self.traceFolder, 'png')):
 					print('Creating traceImgFolder: %s' % os.path.join( \
 						self.traceFolder, 'png'))
-				#os.makedirs(self.traceFolder)
+				if not os.path.exists(os.path.join(self.traceFolder, 'png')):
+					os.makedirs(os.path.join(self.traceFolder, 'png'))
 				plt.savefig(path)
-			if '--traceplot' in sys.argv:
+			if self.tracePlot:
 				plt.show()
 
 	def __initTrial__(self, trialDict):
@@ -555,12 +560,16 @@ class EyelinkAscFolderReader(BaseReader):
 		Attempts to parse a line (in list format) into a dictionary of sample
 		information. The expected format is:
 
-		# Timestamp x y pupil size ...
-		4815155   168.2   406.5  2141.0 ...
+			# Timestamp x y pupil size ...
+			4815155   168.2   406.5  2141.0 ...
 
-		or (during blinks)
-		661781	   .	   .	    0.0	...
+		or (during blinks):
 
+			661781	   .	   .	    0.0	...
+
+		or (elaborate format):
+
+			548367    514.0   354.5  1340.0 ...      -619.0  -161.0    88.9 ...CFT..R.BLR
 
 		Arguments:
 		l -- a list
@@ -570,7 +579,7 @@ class EyelinkAscFolderReader(BaseReader):
 		following keys: 'x', 'y', 'time'.
 		"""
 
-		if len(l) != 5:
+		if len(l) not in (5, 9):
 			return None
 		try:
 			sample = {}
@@ -612,8 +621,10 @@ class EyelinkAscFolderReader(BaseReader):
 			return None
 		assert(len(l) == 8)
 		fixation = {}
+		# EFIX R   1651574	1654007	2434	  653.3	  557.8	   4710
 		fixation["x"] = l[5] - self.driftAdjust[0]
 		fixation["y"] = l[6] - self.driftAdjust[1]
+		fixation['pupilSize'] = l[7]
 		fixation["sTime"] = l[2]
 		fixation["eTime"] = l[3]
 		fixation["duration"] = fixation['eTime'] - fixation['sTime']
